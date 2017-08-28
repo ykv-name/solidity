@@ -154,6 +154,7 @@ cache:
     ccache: true
     directories:
         - boost_1_67_0
+#        - build
         - $HOME/.local
 
 install:
