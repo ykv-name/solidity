@@ -798,40 +798,42 @@ if the local variable itself is just a reference.
 Arrays
 ------
 
-Arrays can have a compile-time fixed size or they can be dynamic.
-The are few restrictions for the element, it can also be
-another array, a mapping or a struct. The general restrictions for
-types apply, though, in that mappings can only be used in storage
-and publicly-visible functions need parameters that are :ref:`ABI types <ABI>`.
+Arrays can have a compile-time fixed size or they can have a dynamic size.
 
-An array of fixed size ``k`` and element type ``T`` is written as ``T[k]``,
-an array of dynamic size as ``T[]``. As an example, an array of 5 dynamic
-arrays of ``uint`` is ``uint[][5]`` (note that the notation is reversed when
-compared to some other languages). To access the second uint in the
-third dynamic array, you use ``x[2][1]`` (indices are zero-based and
-access works in the opposite way of the declaration, i.e. ``x[2]``
-shaves off one level in the type from the right).
+You write an array of fixed size ``k`` and element type ``T`` as ``T[k]``, and an
+array of dynamic size as ``T[]``.
+
+For example, you write an array of 5 dynamic arrays of ``uint`` as ``uint[][5]``,
+the notation is reversed compared to some other languages.
+
+Indices are zero-based, and access is the opposite of the declaration. So to access
+the second uint in the third dynamic array, you use ``x[2][1]``, and to access
+the third dynamic array, you use ``x[2]``
+
+You can use any type for array elements, including mapping or a struct. The
+general restrictions for types apply, in that you can only use mappings in the
+storage data location and publicly-visible functions need parameters that are :ref:`ABI types <ABI>`.
 
 Accessing an array past its end causes a revert. If you want to add
-new elements, you have to use ``.push()`` or increase the ``.length``
-member (see below).
+new elements, you have to use the ``.push()`` method or increase the ``.length`` :ref:`member <members>`.
 
 Variables of type ``bytes`` and ``string`` are special arrays. A ``bytes`` is similar to ``byte[]``,
 but it is packed tightly in calldata and memory. ``string`` is equal to ``bytes`` but does not allow
 length or index access.
-So ``bytes`` should always be preferred over ``byte[]`` because it is cheaper.
-As a rule of thumb, use ``bytes`` for arbitrary-length raw byte data and ``string``
-for arbitrary-length string (UTF-8) data. If you can limit the length to a certain
-number of bytes, always use one of ``bytes1`` to ``bytes32`` because they are much cheaper.
+
+You should use ``bytes`` over ``byte[]`` because it is cheaper. As a general rule,
+use ``bytes`` for arbitrary-length raw byte data and ``string`` for arbitrary-length
+string (UTF-8) data. If you can limit the length to a certain number of bytes,
+always use one of ``bytes1`` to ``bytes32`` because they are much cheaper.
 
 .. note::
     If you want to access the byte-representation of a string ``s``, use
     ``bytes(s).length`` / ``bytes(s)[7] = 'x';``. Keep in mind
     that you are accessing the low-level bytes of the UTF-8 representation,
-    and not the individual characters!
+    and not the individual characters.
 
 It is possible to mark arrays ``public`` and have Solidity create a :ref:`getter <visibility-and-getters>`.
-The numeric index will become a required parameter for the getter.
+The numeric index becomes a required parameter for the getter.
 
 .. index:: ! array;allocating, new
 
@@ -903,6 +905,8 @@ It is planned to remove this restriction in the future but currently creates
 some complications because of how arrays are passed in the ABI.
 
 .. index:: ! array;length, length, push, pop, !array;push, !array;pop
+
+.. _members:
 
 Members
 ^^^^^^^
