@@ -798,24 +798,24 @@ if the local variable itself is just a reference.
 Arrays
 ------
 
-Arrays can have a compile-time fixed size or they can have a dynamic size.
+Arrays can have a compile-time fixed size, or they can have a dynamic size.
 
-You write an array of fixed size ``k`` and element type ``T`` as ``T[k]``, and an
-array of dynamic size as ``T[]``.
+An array of fixed size ``k`` and element type ``T`` is written as ``T[k]``,
+and an array of dynamic size as ``T[]``.
 
-For example, you write an array of 5 dynamic arrays of ``uint`` as ``uint[][5]``,
+For example, an array of 5 dynamic arrays of ``uint`` as ``uint[][5]``,
 the notation is reversed compared to some other languages.
 
-Indices are zero-based, and access is the opposite of the declaration. So to access
-the second uint in the third dynamic array, you use ``x[2][1]``, and to access
-the third dynamic array, you use ``x[2]``
+Indices are zero-based, and access is in the opposite direction of the declaration.
+For example to access the second uint in the third dynamic array, use ``x[2][1]``,
+and to access the third dynamic array, use ``x[2]``
 
-You can use any type for array elements, including mapping or a struct. The
-general restrictions for types apply, in that you can only use mappings in the
+Array elements can be of any type, including mapping or a struct. The general
+restrictions for types apply, in that mappings can only be stored in the
 storage data location and publicly-visible functions need parameters that are :ref:`ABI types <ABI>`.
 
-Accessing an array past its end causes a revert. If you want to add
-new elements, you have to use the ``.push()`` method or increase the ``.length`` :ref:`member <members>`.
+Accessing an array past its end causes a revert, use the ``.push()`` method or
+increase the ``.length`` :ref:`member <members>` to add elements.
 
 Variables of type ``bytes`` and ``string`` are special arrays. A ``bytes`` is similar to ``byte[]``,
 but it is packed tightly in calldata and memory. ``string`` is equal to ``bytes`` but does not allow
