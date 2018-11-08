@@ -160,6 +160,29 @@ jobs:
             - test/soltest
             - test/tools/solfuzzer
 
+  build_x86_linux_static:
+    docker:
+      - image: buildpack-deps:latest
+    environment:
+      TERM: xterm
+      CMAKE_OPTIONS: -DSOLC_LINK_STATIC=ON -DLLLC_LINK_STATIC=ON
+    steps:
+      - checkout
+      - run:
+          name: Install build dependencies
+          command: |
+            apt-get -qq update
+            apt-get -qy install cmake libboost-regex-dev libboost-filesystem-dev libboost-test-dev libboost-system-dev libboost-program-options-dev
+            ./scripts/install_obsolete_jsoncpp_1_7_4.sh
+            ./scripts/install_static_z3.sh
+      - run: *setup_prerelease_commit_hash
+      - run: *run_build
+      - store_artifacts: *solc_artifact
+      - persist_to_workspace:
+          root: build
+          paths:
+            - "*"
+
   build_x86_clang7:
     docker:
       - image: buildpack-deps:cosmic
@@ -363,6 +386,7 @@ workflows:
           requires:
             - build_emscripten
       - build_x86_linux: *build_on_tags
+      - build_x86_linux_static: *build_on_tags
       - build_x86_clang7: *build_on_tags
       - build_x86_mac: *build_on_tags
       - test_x86_linux:
