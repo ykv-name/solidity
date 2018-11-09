@@ -99,3 +99,13 @@ SymbolicFixedBytesVariable::SymbolicFixedBytesVariable(
 	SymbolicIntVariable(make_shared<IntegerType>(_numBytes * 8), _uniqueName, _interface)
 {
 }
+
+SymbolicMappingVariable::SymbolicMappingVariable(
+	TypePointer _type,
+	string const& _uniqueName,
+	smt::SolverInterface& _interface
+):
+	SymbolicVariable(move(_type), _uniqueName, _interface)
+{
+	solAssert(isMapping(m_type->category()), "");
+}

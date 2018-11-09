@@ -58,8 +58,7 @@ void SMTChecker::analyze(SourceUnit const& _source, shared_ptr<Scanner> const& _
 bool SMTChecker::visit(ContractDefinition const& _contract)
 {
 	for (auto _var : _contract.stateVariables())
-		if (_var->type()->isValueType())
-			createVariable(*_var);
+		createVariable(*_var);
 	return true;
 }
 
@@ -251,6 +250,15 @@ void SMTChecker::endVisit(VariableDeclarationStatement const& _varDecl)
 		);
 }
 
+bool SMTChecker::visit(Assignment const& _assignment)
+{
+	m_assignmentLeftHand = true;
+	_assignment.leftHandSide().accept(*this);
+	m_assignmentLeftHand = false;
+	_assignment.rightHandSide().accept(*this);
+	return false;
+}
+
 void SMTChecker::endVisit(Assignment const& _assignment)
 {
 	if (_assignment.assignmentOperator() != Token::Assign)
@@ -276,6 +284,11 @@ void SMTChecker::endVisit(Assignment const& _assignment)
 				_assignment.location(),
 				"Assertion checker does not yet implement such assignments."
 			);
+	}
+	else if (dynamic_cast<IndexAccess const*>(&_assignment.leftHandSide()))
+	{
+		m_interface->addAssertion(expr(_assignment.leftHandSide()) == expr(_assignment.rightHandSide()));
+		defineExpr(_assignment, expr(_assignment.rightHandSide()));
 	}
 	else
 		m_errorReporter.warning(
@@ -461,7 +474,7 @@ void SMTChecker::visitBlockHash(FunctionCall const& _funCall)
 		make_shared<smt::FunctionSort>(vector<smt::SortPointer>{paramSort}, returnSort)
 	);
 	defineExpr(_funCall, m_uninterpretedFunctions.at(blockHash)({expr(*arguments.at(0))}));
-	m_uninterpretedTerms.push_back(&_funCall);
+	m_uninterpretedTerms.insert(&_funCall);
 }
 
 void SMTChecker::inlineFunctionCall(FunctionCall const& _funCall)
@@ -551,7 +564,11 @@ void SMTChecker::endVisit(Identifier const& _identifier)
 	else if (isSupportedType(_identifier.annotation().type->category()))
 	{
 		if (VariableDeclaration const* decl = dynamic_cast<VariableDeclaration const*>(_identifier.annotation().referencedDeclaration))
+		{
 			defineExpr(_identifier, currentValue(*decl));
+			if (decl->annotation().type->category() == Type::Category::Mapping && m_assignmentLeftHand)
+				newValue(*decl);
+		}
 		else if (_identifier.name() == "now")
 			defineSpecialVariable(_identifier.name(), _identifier);
 		else
@@ -624,6 +641,100 @@ bool SMTChecker::visit(MemberAccess const& _memberAccess)
 		);
 
 	return true;
+}
+
+void SMTChecker::endVisit(IndexAccess const& _indexAccess)
+{
+	bool error = false;
+	shared_ptr<SymbolicVariable> array;
+	if (Identifier const* id = dynamic_cast<Identifier const*>(&_indexAccess.baseExpression()))
+	{
+		VariableDeclaration const& varDecl = dynamic_cast<VariableDeclaration const&>(*id->annotation().referencedDeclaration);
+		if (knownVariable(varDecl))
+			array = m_variables[&varDecl];
+		else
+			error = true;
+	}
+	else if (IndexAccess const* innerAccess = dynamic_cast<IndexAccess const*>(&_indexAccess.baseExpression()))
+	{
+		if (knownExpr(*innerAccess))
+		{
+			array = m_expressions[innerAccess];
+			// If the base expression of _indexAccess is also an IndexAccess we
+			// remove it from the terms that we ask models for.
+			// This is done to avoid asking for models for entire arrays in case of
+			// multi-dimensional access.
+			// This way we only ask a model for the outermost access.
+			if (m_uninterpretedTerms.count(innerAccess))
+				m_uninterpretedTerms.erase(innerAccess);
+		}
+		else
+			error = true;
+	}
+	else
+		error = true;
+
+	if (error)
+	{
+		m_errorReporter.warning(
+			_indexAccess.location(),
+			"Assertion checker does not yet implement this expression."
+		);
+		return;
+	}
+	else
+	{
+		// Assign the old array to build the store expression later.
+		if (m_assignmentLeftHand)
+		{
+			solAssert(array, "");
+			solAssert(array->index() > 0, "");
+			defineExpr(_indexAccess, smt::Expression::select(array->valueAtIndex(array->index() - 1), expr(*_indexAccess.indexExpression())));
+		}
+		defineExpr(_indexAccess, smt::Expression::select(array->currentValue(), expr(*_indexAccess.indexExpression())));
+		m_uninterpretedTerms.insert(&_indexAccess);
+	}
+
+	if (m_assignmentLeftHand)
+		encodeArrayAssignment(_indexAccess, array);
+}
+
+// If `m_assignmentLeftHand` is true, `_indexAccess` is being assigned.
+// The assignment encoding is as follows:
+// 1- The SSA index of the array variable is increased while visiting the Identifier.
+// 2- In the end of function `endVisit(IndexAccess const& _indexAccess)` above,
+// if `m_assignmentLeftHand` is true, the expression for `_indexAccess` is
+// first constructed with the old array (before the assignment), and then with
+// the current value, regardless of how many nested IndexAccess there are.
+// This is done to enable the store encoding.
+// As an example, the encoding of `A[1][2] = x` is:
+// A[1]: expression is `select(A', 1)`, add to the solver `(y != 1) => (select(A', y) == select(A, y))`,
+// where `A'` is `A` with the increased SSA index and `y` is a fresh variable.
+// That is, the new array is the same as before, except for the given index.
+// A[1][2]: similarly, expression is `select(expr(A[1]), 2)`, add to the solver
+// `((z != 2) => (select(expr(A'[1]), z) == select(expr(A[1]), z) || z == 2)`, where `z` is a fresh variable.
+// A[1][2] = x: simply add to the solver `expr(A'[1][2]) == x`.
+void SMTChecker::encodeArrayAssignment(IndexAccess const& _indexAccess, shared_ptr<SymbolicVariable> const& _array)
+{
+	if (!m_assignmentLeftHand)
+		return;
+
+	solAssert(_array, "");
+	solAssert(_array->index() > 0, "");
+
+	// Create the fresh variable.
+	// TODO global fresh variable generator.
+	auto tmpIndex = newSymbolicVariable(
+		*_indexAccess.indexExpression()->annotation().type,
+		"#fresh_" + to_string(_indexAccess.id()) + "_" + to_string(_indexAccess.indexExpression()->id()),
+		*m_interface
+	);
+
+	auto tmpValue = tmpIndex.second->currentValue();
+	auto a = smt::Expression::select(_array->currentValue(), tmpValue);
+	auto b = smt::Expression::select(_array->valueAtIndex(_array->index() - 1), tmpValue);
+	auto c = tmpValue == expr(*_indexAccess.indexExpression());
+	m_interface->addAssertion((a == b) || c);
 }
 
 void SMTChecker::defineSpecialVariable(string const& _name, Expression const& _expr, bool _increaseIndex)
@@ -826,8 +937,11 @@ void SMTChecker::checkCondition(
 		}
 		for (auto const& var: m_variables)
 		{
-			expressionsToEvaluate.emplace_back(currentValue(*var.first));
-			expressionNames.push_back(var.first->name());
+			if (var.first->type()->isValueType())
+			{
+				expressionsToEvaluate.emplace_back(currentValue(*var.first));
+				expressionNames.push_back(var.first->name());
+			}
 		}
 		for (auto const& var: m_specialVariables)
 		{

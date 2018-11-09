@@ -70,6 +70,7 @@ private:
 	bool visit(WhileStatement const& _node) override;
 	bool visit(ForStatement const& _node) override;
 	void endVisit(VariableDeclarationStatement const& _node) override;
+	bool visit(Assignment const& _node) override;
 	void endVisit(Assignment const& _node) override;
 	void endVisit(TupleExpression const& _node) override;
 	void endVisit(UnaryOperation const& _node) override;
@@ -79,6 +80,7 @@ private:
 	void endVisit(Literal const& _node) override;
 	void endVisit(Return const& _node) override;
 	bool visit(MemberAccess const& _node) override;
+	void endVisit(IndexAccess const& _node) override;
 
 	void arithmeticOperation(BinaryOperation const& _op);
 	void compareOperation(BinaryOperation const& _op);
@@ -91,6 +93,8 @@ private:
 	/// Visits the FunctionDefinition of the called function
 	/// if available and inlines the return value.
 	void inlineFunctionCall(FunctionCall const&);
+
+	void encodeArrayAssignment(IndexAccess const&, std::shared_ptr<SymbolicVariable> const&);
 
 	void defineSpecialVariable(std::string const& _name, Expression const& _expr, bool _increaseIndex = false);
 	void defineUninterpretedFunction(std::string const& _name, smt::SortPointer _sort);
@@ -201,6 +205,10 @@ private:
 	std::shared_ptr<smt::SolverInterface> m_interface;
 	std::shared_ptr<VariableUsage> m_variableUsage;
 	bool m_loopExecutionHappened = false;
+	/// Represents whether the left hand side of an assignment
+	/// is being visited. This is necessary to build the SMT
+	/// expressions for array assignments.
+	bool m_assignmentLeftHand = false;
 	/// An Expression may have multiple smt::Expression due to
 	/// repeated calls to the same function.
 	std::unordered_map<Expression const*, std::shared_ptr<SymbolicVariable>> m_expressions;
@@ -209,8 +217,9 @@ private:
 	/// Stores the declaration of an Uninterpreted Function.
 	std::unordered_map<std::string, smt::Expression> m_uninterpretedFunctions;
 	/// Stores the instances of an Uninterpreted Function applied to arguments.
+	/// These may be direct application of UFs or Array index access.
 	/// Used to retrieve models.
-	std::vector<Expression const*> m_uninterpretedTerms;
+	std::set<Expression const*> m_uninterpretedTerms;
 	std::vector<smt::Expression> m_pathConditions;
 	langutil::ErrorReporter& m_errorReporter;
 	std::shared_ptr<langutil::Scanner> m_scanner;
