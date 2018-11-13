@@ -92,6 +92,7 @@ private:
 	/// Visits the FunctionDefinition of the called function
 	/// if available and inlines the return value.
 	void inlineFunctionCall(FunctionCall const&);
+	void abstractFunctionCall(FunctionCall const&);
 
 	/// Handles assignment to mapping/array
 	void arrayAssignment(Assignment const&);

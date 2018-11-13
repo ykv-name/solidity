@@ -53,6 +53,9 @@ bool isMapping(Type::Category _category);
 /// which is true for unsupported types.
 std::pair<bool, std::shared_ptr<SymbolicVariable>> newSymbolicVariable(Type const& _type, std::string const& _uniqueName, smt::SolverInterface& _solver);
 
+/// Convert a Solidity type to another Solidity type/// that we can encode precisely.
+TypePointer convertSolidityType(Type const& _type);
+
 smt::Expression minValue(IntegerType const& _type);
 smt::Expression maxValue(IntegerType const& _type);
 
