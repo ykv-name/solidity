@@ -81,6 +81,7 @@ private:
 	/// Visits the FunctionDefinition of the called function
 	/// if available and inlines the return value.
 	void inlineFunctionCall(FunctionCall const&);
+	void abstractFunctionCall(FunctionCall const&);
 
 	void defineSpecialVariable(std::string const& _name, Expression const& _expr, bool _increaseIndex = false);
 	void defineUninterpretedFunction(std::string const& _name, smt::SortPointer _sort);

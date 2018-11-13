@@ -96,23 +96,6 @@ smt::Expression SymbolicIntVariable::valueAtIndex(int _index) const
 	return m_interface.newVariable(uniqueSymbol(_index), make_shared<smt::Sort>(smt::Kind::Int));
 }
 
-SymbolicAddressVariable::SymbolicAddressVariable(
-	string const& _uniqueName,
-	smt::SolverInterface& _interface
-):
-	SymbolicIntVariable(make_shared<IntegerType>(160), _uniqueName, _interface)
-{
-}
-
-SymbolicFixedBytesVariable::SymbolicFixedBytesVariable(
-	unsigned _numBytes,
-	string const& _uniqueName,
-	smt::SolverInterface& _interface
-):
-	SymbolicIntVariable(make_shared<IntegerType>(_numBytes * 8), _uniqueName, _interface)
-{
-}
-
 SymbolicFunctionDeclaration::SymbolicFunctionDeclaration(
 	smt::SortPointer const& _sort,
 	string const& _uniqueName,

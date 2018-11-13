@@ -123,31 +123,6 @@ protected:
 	smt::Expression valueAtIndex(int _index) const;
 };
 
-/**
- * Specialization of SymbolicVariable for Address
- */
-class SymbolicAddressVariable: public SymbolicIntVariable
-{
-public:
-	SymbolicAddressVariable(
-		std::string const& _uniqueName,
-		smt::SolverInterface& _interface
-	);
-};
-
-/**
- * Specialization of SymbolicVariable for FixedBytes
- */
-class SymbolicFixedBytesVariable: public SymbolicIntVariable
-{
-public:
-	SymbolicFixedBytesVariable(
-		unsigned _numBytes,
-		std::string const& _uniqueName,
-		smt::SolverInterface& _interface
-	);
-};
-
 class SymbolicFunctionDeclaration
 {
 public:

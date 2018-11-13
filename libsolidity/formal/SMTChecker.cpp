@@ -361,23 +361,55 @@ void SMTChecker::endVisit(FunctionCall const& _funCall)
 	FunctionType const& funType = dynamic_cast<FunctionType const&>(*_funCall.expression().annotation().type);
 
 	std::vector<ASTPointer<Expression const>> const args = _funCall.arguments();
-	if (funType.kind() == FunctionType::Kind::Assert)
-		visitAssert(_funCall);
-	else if (funType.kind() == FunctionType::Kind::Require)
-		visitRequire(_funCall);
-	else if (funType.kind() == FunctionType::Kind::GasLeft)
-		visitGasLeft(_funCall);
-	else if (funType.kind() == FunctionType::Kind::BlockHash)
-		visitBlockHash(_funCall);
-	else if (funType.kind() == FunctionType::Kind::Internal)
-		inlineFunctionCall(_funCall);
-	else
+	switch (funType.kind())
 	{
+	case FunctionType::Kind::Assert:
+		visitAssert(_funCall);
+		break;
+	case FunctionType::Kind::Require:
+		visitRequire(_funCall);
+		break;
+	case FunctionType::Kind::GasLeft:
+		visitGasLeft(_funCall);
+		break;
+	case FunctionType::Kind::Internal:
+		inlineFunctionCall(_funCall);
+		break;
+	case FunctionType::Kind::KECCAK256:
+	case FunctionType::Kind::ECRecover:
+	case FunctionType::Kind::SHA256:
+	case FunctionType::Kind::RIPEMD160:
+	case FunctionType::Kind::BlockHash:
+	case FunctionType::Kind::AddMod:
+	case FunctionType::Kind::MulMod:
+		abstractFunctionCall(_funCall);
+		break;
+	default:
 		m_errorReporter.warning(
 			_funCall.location(),
 			"Assertion checker does not yet implement this type of function call."
 		);
 	}
+}
+
+void SMTChecker::abstractFunctionCall(FunctionCall const& _funCall)
+{
+	FunctionType const& fType = dynamic_cast<FunctionType const&>(*_funCall.expression().annotation().type);
+	if (fType.returnParameterTypes().size() > 1)
+	{
+		m_errorReporter.warning(
+			_funCall.location(),
+			"Assertion checker does not yet support functions with more than one return parameter."
+		);
+		return;
+	}
+	defineUninterpretedFunction(fType.richIdentifier(), smtSort(fType));
+	vector<smt::Expression> smtArguments;
+	for (auto const& arg: _funCall.arguments())
+		smtArguments.push_back(expr(*arg));
+	defineExpr(_funCall, m_uninterpretedFunctions.at(fType.richIdentifier())(smtArguments));
+	m_uninterpretedTerms.push_back(&_funCall);
+	::setUnknownValue(expr(_funCall), convertSolidityType(*_funCall.annotation().type), *m_interface);
 }
 
 void SMTChecker::visitAssert(FunctionCall const& _funCall)
@@ -523,7 +555,6 @@ void SMTChecker::endVisit(Literal const& _literal)
 {
 	Type const& type = *_literal.annotation().type;
 	if (isNumber(type.category()))
-
 		defineExpr(_literal, smt::Expression(type.literalValue(&_literal)));
 	else if (isBool(type.category()))
 		defineExpr(_literal, smt::Expression(_literal.token() == Token::TrueLiteral ? true : false));
