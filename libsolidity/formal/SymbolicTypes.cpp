@@ -51,10 +51,11 @@ smt::SortPointer dev::solidity::smtSort(Type const& _type)
 			solAssert(mapType, "");
 			return make_shared<smt::ArraySort>(smtSort(*mapType->keyType()), smtSort(*mapType->valueType()));
 		}
+		solAssert(false, "Invalid type.");
 	}
+	default:
+		solAssert(false, "Invalid type.");
 	}
-	// Abstract type
-	return make_shared<smt::Sort>(smt::Kind::Int);
 }
 
 vector<smt::SortPointer> dev::solidity::smtSort(vector<TypePointer> const& _types)
@@ -75,60 +76,34 @@ smt::Kind dev::solidity::smtKind(Type::Category _category)
 		return smt::Kind::Array;
 	else if (isFunction(_category))
 		return smt::Kind::Function;
-	// Abstract type
-	return smt::Kind::Int;
+	solAssert(false, "Invalid type.");
 }
 
 bool dev::solidity::isSupportedType(Type::Category _category)
 {
 	return isNumber(_category) ||
 		isBool(_category) ||
-		isFunction(_category) ||
 		isMapping(_category);
 }
 
-pair<bool, shared_ptr<SymbolicVariable>> dev::solidity::newSymbolicVariable(
+bool dev::solidity::isSupportedTypeDeclaration(Type::Category _category)
+{
+	return isSupportedType(_category) ||
+		isFunction(_category);
+}
+
+pair<bool, SymbolicVariable> dev::solidity::newSymbolicVariable(
 	Type const& _type,
 	std::string const& _uniqueName,
 	smt::SolverInterface& _solver
 )
 {
-	bool abstract = false;
-	shared_ptr<SymbolicVariable> var;
 	TypePointer type = convertSolidityType(_type);
-	if (!isSupportedType(type->category()))
-	{
-		abstract = true;
-		var = make_shared<SymbolicIntVariable>(make_shared<IntegerType>(256), _uniqueName, _solver);
-	}
-	else if (isBool(_type.category()))
-		var = make_shared<SymbolicBoolVariable>(type, _uniqueName, _solver);
-	else if (isFunction(type->category()))
-		var = make_shared<SymbolicIntVariable>(make_shared<IntegerType>(256), _uniqueName, _solver);
-	else if (isInteger(type->category()))
-		var = make_shared<SymbolicIntVariable>(type, _uniqueName, _solver);
-	else if (isFixedBytes(_type.category()))
-	{
-		auto fixedBytesType = dynamic_cast<FixedBytesType const*>(type.get());
-		solAssert(fixedBytesType, "");
-		var = make_shared<SymbolicFixedBytesVariable>(fixedBytesType->numBytes(), _uniqueName, _solver);
-	}
-	else if (isAddress(_type.category()))
-		var = make_shared<SymbolicAddressVariable>(_uniqueName, _solver);
-	else if (isRational(_type.category()))
-	{
-		auto rational = dynamic_cast<RationalNumberType const*>(&_type);
-		solAssert(rational, "");
-		if (rational->isFractional())
-			var = make_shared<SymbolicIntVariable>(make_shared<IntegerType>(256), _uniqueName, _solver);
-		else
-			var = make_shared<SymbolicIntVariable>(type, _uniqueName, _solver);
-	}
-	else if (isMapping(_type.category()))
-		var = make_shared<SymbolicMappingVariable>(type, _uniqueName, _solver);
-	else
-		solAssert(false, "");
-	return make_pair(abstract, var);
+	// Function types are a special case: they are supported as declarations
+	// and can be called, but they cannot be assigned or used as parameters.
+	if (isSupportedTypeDeclaration(type->category()))
+		return make_pair(false, SymbolicVariable{type, _uniqueName, _solver});
+	return make_pair(true, SymbolicVariable{make_shared<IntegerType>(256), _uniqueName, _solver});
 }
 
 TypePointer dev::solidity::convertSolidityType(Type const& _type)
