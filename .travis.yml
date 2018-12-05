@@ -177,7 +177,7 @@ install:
 before_script:
     - test $SOLC_EMSCRIPTEN != On || (scripts/build_emscripten.sh)
     - test $SOLC_DOCKER != On || (scripts/docker_build.sh)
-    - test $SOLC_RELEASE != On || (scripts/build.sh $SOLC_BUILD_TYPE
+    - test $SOLC_RELEASE != On || (scripts/build.sh $SOLC_BUILD_TYPE -DBoost_USE_STATIC_LIBS=OFF
       && scripts/release.sh $ZIP_SUFFIX
       && scripts/create_source_tarball.sh)
 

@@ -4,6 +4,7 @@ if [ -z "$1" ]; then
     BUILD_TYPE=Release
 else
     BUILD_TYPE="$1"
+	shift
 fi
 
 cd $(dirname "$0")/.. &&
@@ -14,7 +15,7 @@ fi
 
 mkdir -p build &&
 cd build &&
-cmake .. -DCMAKE_BUILD_TYPE="$BUILD_TYPE" &&
+cmake .. -DCMAKE_BUILD_TYPE="$BUILD_TYPE" "${@}" &&
 make -j2
 
 if [ $? -ne 0 ]; then
