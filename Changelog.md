@@ -5,6 +5,7 @@ Language Features:
 
 Compiler Features:
  * Inline Assembly: Improve error messages around invalid function argument count.
+ * Type Checker: Add an additional reason to be displayed when type conversion fails.
 
 
 Bugfixes:
