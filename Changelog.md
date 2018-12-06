@@ -5,6 +5,7 @@ Language Features:
 
 Compiler Features:
  * Inline Assembly: Improve error messages around invalid function argument count.
+ * Code Generator: Use codecopy for string constants more aggressively.
 
 
 Bugfixes:
